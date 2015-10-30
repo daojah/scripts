@@ -1,6 +1,6 @@
 
-$user="DemoUser"
-$pwd="Qwerty12"
+$user=""
+$pwd=""
 
 $location="North Europe" 
 $img="a699494373c04fc0bc8f2bb1389d6106__Windows-Server-2012-R2-201411.01-en.us-127GB.vhd"
