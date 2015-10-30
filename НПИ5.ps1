@@ -1,6 +1,6 @@
 ﻿$xx =1
-$user = "abadmin"
-$pwd = "1qazxsw2"
+$user = ""
+$pwd = ""
 $de = "LDAP://10.0.0.3/ou=it,dc=syntegra,dc=ua"
 $deObject = New-Object -TypeName System.DirectoryServices.DirectoryEntry($de,$user,$pwd,'FastBind')
 $selector = new-Object System.DirectoryServices.DirectorySearcher($deObject)
