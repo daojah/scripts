@@ -1,5 +1,5 @@
-﻿$user = "username"
-$pwd = "password"
+﻿$user = ""
+$pwd = ""
 $de = "LDAP://[SERVERNAME]/cn=user,ou=people,o=company"
 $deObject = New-Object -TypeName System.DirectoryServices.DirectoryEntry($de,$user,$pwd,'FastBind')
 $query = new-Object System.DirectoryServices.DirectorySearcher($deObject)
