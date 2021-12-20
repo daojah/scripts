@@ -1,0 +1,111 @@
+# Set subscriptionId 
+subscriptionId=$(az account show --query id --output tsv)
+az account set -s $subscriptionId
+
+# AKS variables
+aksResourceGroup='****'
+aksName='***'
+location='East US'
+ 
+# check if the resource group already exists
+echo "Checking if ["$aksResourceGroup"] resource group actually exists in the ["$subscriptionId"] subscription..."
+
+az group show --name $aksResourceGroup &> /dev/null
+
+if [[ $? != 0 ]]; then
+	echo "No ["$aksResourceGroup"] resource group actually exists in the ["$subscriptionId"] subscription"
+    echo "Creating ["$aksResourceGroup"] resource group in the ["$subscriptionId"] subscription..."
+    
+    # create the resource group
+    az group create --name $aksResourceGroup --location $location 1> /dev/null
+        
+    if [[ $? == 0 ]]; then
+        echo "["$aksResourceGroup"] resource group successfully created in the ["$subscriptionId"] subscription"
+    else
+        echo "Failed to create ["$aksResourceGroup"] resource group in the ["$subscriptionId"] subscription"
+        exit
+    fi
+else
+	echo "["$aksResourceGroup"] resource group already exists in the ["$subscriptionId"] subscription"
+fi
+
+# create AKS cluster   
+####################
+
+# versions
+az aks get-versions --location $location --output table
+
+# Set Kubernetes version 1.21.2 available in the region
+kubernetesVersion=$(az aks get-versions --location $location --query orchestrators[-3].orchestratorVersion --output tsv)
+
+if [[ -n $kubernetesVersion ]]; then
+    echo "Successfully retrieved Kubernetes version ["$kubernetesVersion"] supported by AKS in ["$location"] Azure region"
+else
+    echo "Failed to retrieve Kubernetes 1.21.2 +version supported by AKS in ["$location"] Azure region"
+    exit
+fi
+ 
+echo "Checking if ["$aksName"] aks cluster actually exists in the ["$aksResourceGroup"] resource group..."
+
+az aks show --name $aksName --resource-group $aksResourceGroup &> /dev/null
+
+if [[ $? != 0 ]]; then
+	echo "No ["$aksName"] aks cluster actually exists in the ["$aksResourceGroup"] resource group"
+    echo "Creating ["$aksName"] aks cluster in the ["$aksResourceGroup"] resource group..."
+
+az aks create \ 
+         --resource-group $aksResourceGroup \
+         --name $aksName \
+         --location $location \
+         --kubernetes-version $kubernetesVersion \
+         --network-plugin azure \
+         --enable-aad \
+         --enable-managed-identity 1> /dev/null
+   
+   #Not sure do we need any of them:  
+    #--node-count 1 --max-pods 4 \
+    #--vm-set-type VirtualMachineScaleSets \
+    #--node-osdisk-size 30 \
+    #--load-balancer-sku Basic \
+    #--generate-ssh-keys \
+    #--enable-cluster-autoscaler --min-count 1 --max-count 2 \
+    #--node-vm-size Standard_D2_v3 \
+
+ if [[ $? == 0 ]]; then
+        echo "["$aksName"] aks cluster successfully created in the ["$aksResourceGroup"] resource group"
+    else
+        echo "Failed to create ["$aksName"] aks cluster in the ["$aksResourceGroup"] resource group"
+        exit
+    fi
+else
+	echo "["$aksName"] aks cluster already exists in the ["$aksResourceGroup"] resource group"
+fi
+
+# adding node pools
+az deployment group create \
+    --resource-group $aksResourceGroup \
+    --template-file aks-agentpools.json
+
+# connect to the new Kubernetes cluster
+echo "Getting access credentials configure kubectl to connect to the ["$aksName"] AKS cluster..."
+az aks get-credentials -n $aksName -g $aksResourceGroup --admin
+
+if [[ $? == 0 ]]; then
+    echo "Credentials for the ["$aksName"] cluster successfully retrieved"
+else
+    echo "Failed to retrieve the credentials for the ["$aksName"] cluster"
+    exit
+fi
+
+if [[ -z $userObjectId ]]; then 
+    exit
+fi
+ 
+az aks show  -n $aksName -g $aksResourceGroup
+
+kubectl get nodes
+
+echo "To finish ["$aksName"] AKS cluster installation please run script cluster-wide-installs-prd.ps1"
+
+
+
